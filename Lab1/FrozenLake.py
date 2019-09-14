@@ -1,9 +1,15 @@
 import gym
 import numpy as np
 import time
+import matplotlib.pyplot as plt
+import os
+import sys
+import pyautogui as pyag
+
+time.sleep(2)
+print(pyag.position())
 
 # Load the environment
-
 env = gym.make('FrozenLake-v0')  # make function of Gym loads the specified environment
 
 s_reset = env.reset()  # resets the environment and returns the start state as a value
@@ -14,7 +20,7 @@ print("number of states: ", env.observation_space, "\n")
 
 
 # Epsilon-Greedy approach for Exploration and Exploitation of the state-actions spaces
-def epsilon_greedy(Q, s, na):
+def epsilon_greeddy(Q, s, na):
     epsilon = 0.3
     p = np.random.uniform(low=0, high=1)
     if p > epsilon:
@@ -24,14 +30,14 @@ def epsilon_greedy(Q, s, na):
 
 
 # Q-Learning Implementation
-def q_learning(lr, y, eps, show_table=True):
+def q_learning(lr, df, eps, show_table=True):
     # Initializing Q-table with zeros
     Q = np.zeros([env.observation_space.n, env.action_space.n])
     for i in range(eps):
         s = env.reset()
         t = False
         while True:
-            a = epsilon_greedy(Q, s, env.action_space.n)
+            a = epsilon_greeddy(Q, s, env.action_space.n)
             s_, r, t, _ = env.step(a)
             if r == 0:
                 if t is True:
@@ -42,7 +48,7 @@ def q_learning(lr, y, eps, show_table=True):
             if r == 1:
                 r = 100
                 Q[s_] = np.ones(env.action_space.n)*r   # in terminal state Q value equals the reward
-            Q[s, a] = Q[s, a] + lr * (r + y*np.max(Q[s_, a]) - Q[s, a])
+            Q[s, a] = Q[s, a] + lr * (r + df*np.max(Q[s_, a]) - Q[s, a])
             s = s_
             if t is True:
                 break
@@ -68,21 +74,106 @@ def check_success(Q):
             break
     if s == 15:
         return True
+    return False
 
 
-def experiment(lr=0.5, y=0.9, eps=10000):
-    start = time.time()
-    success = False
-    n = 0
-    while not success:
-        Q = q_learning(lr=lr, y=y, eps=eps, show_table=False)
-        success = check_success(Q)
-        n += 1
-    print("Params lr={}, y={}, eps={}   program time: {} seconds".format(lr, y, eps, str(time.time() - start)))
+def experiment(lr=0.5, df=0.9, eps=10000, number=10):
+    sum_n, sum_time = 0, 0
+    for _ in range(number):
+        start = time.time()
+        success = False
+        n = 0
+        while not success:
+            Q = q_learning(lr=lr, df=df, eps=eps, show_table=False)
+            success = check_success(Q)
+            n += 1
+        sum_n += n
+        sum_time += time.time() - start
+    return sum_n/number, sum_time/number
 
+
+def analysis_params():
+    # Careful: with defaults params estimate time of work is 1 hour
+    repeat_number = 4
+    avg_results_for_success = list()
+
+    avg_results_for_success.append(experiment(lr=0.5, df=0.9, eps=10000, number=repeat_number))  # 0
+    avg_results_for_success.append(experiment(lr=0.4, df=0.9, eps=10000, number=repeat_number))  # 1
+    avg_results_for_success.append(experiment(lr=0.6, df=0.9, eps=10000, number=repeat_number))  # 2
+    avg_results_for_success.append(experiment(lr=0.5, df=0.85, eps=10000, number=repeat_number))  # 3
+    avg_results_for_success.append(experiment(lr=0.5, df=0.95, eps=10000, number=repeat_number))  # 4
+    avg_results_for_success.append(experiment(lr=0.5, df=0.9, eps=2000, number=repeat_number))  # 5
+    avg_results_for_success.append(experiment(lr=0.5, df=0.9, eps=25000, number=repeat_number))  # 6
+
+    print(avg_results_for_success)
+
+    f_lr_n = [avg_results_for_success[x][0] for x in (1, 0, 2)]
+    f_lr_time = [avg_results_for_success[x][1] for x in (1, 0, 2)]
+    x_lr = [0.4, 0.5, 0.6]
+
+    f_df_n = [avg_results_for_success[x][0] for x in (3, 0, 4)]
+    f_df_time = [avg_results_for_success[x][1] for x in (3, 0, 4)]
+    x_df = [0.85, 0.9, 0.95]
+
+    f_eps_n = [avg_results_for_success[x][0] for x in (5, 0, 6)]
+    f_eps_time = [avg_results_for_success[x][1] for x in (5, 0, 6)]
+    x_eps = [2000, 10000, 25000]
+
+    fig, ax = plt.subplots(1, 3, squeeze=False)
+
+    ax[0][0].plot(x_lr, f_lr_n, x_lr, f_lr_time, marker=".")
+    ax[0][0].set_title("Learning rate")
+    ax[0][0].legend(("suc_№", "suc_time"), loc='upper center')
+
+    ax[0][1].plot(x_df, f_df_n, x_df, f_df_time, marker=".")
+    ax[0][1].set_title("Discount factor")
+    ax[0][1].legend(("suc_№", "suc_time"), loc='upper center')
+
+    ax[0][2].plot(x_eps, f_eps_n, x_eps, f_eps_time, marker=".")
+    ax[0][2].set_title("Total episodes")
+    ax[0][2].legend(("suc_№", "suc_time"), loc='upper center')
+
+    plt.show()
+
+
+def clear_screen(cnsl=False):
+    time.sleep(.5)
+    if cnsl:
+        os.system('cls' if os.name == 'nt' else 'clear')
+    else:
+        pyag.click(x=197, y=782)
+        pyag.hotkey('f11')
+
+
+def view_one_pass():
+
+    Q = q_learning(lr=0.5, df=0.9, eps=10000, show_table=False)
+    # guarantee of success
+    # TODO
+    while not check_success(Q):
+        Q = q_learning(lr=0.5, df=0.9, eps=10000, show_table=False)
+
+    s = env.reset()
+
+    while True:
+        a = np.argmax(Q[s])
+        s_, r, t, _ = env.step(a)
+        clear_screen()
+        # print("===============")
+        # print(s_, r, t)
+        env.render()
+        s = s_
+        if t is True:
+            break
 
 
 if __name__ == '__main__':
-    experiment()
-
+    print("Write "
+          "\n1 for analysis_params  (work time ~ 20 min)"
+          "\n0 for view_one_pass")
+    choose = int(input())
+    if choose:
+        analysis_params()
+    else:
+        view_one_pass()
 
