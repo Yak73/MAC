@@ -23,4 +23,3 @@ if __name__ == '__main__':
         print("Action description/meaning: ", env.unwrapped.get_action_meanings())
     except AttributeError:
         pass
-    print_spaces(env.state)
