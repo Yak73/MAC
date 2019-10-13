@@ -2,6 +2,8 @@ import gym
 
 import random
 
+GAME_NAME = 'Alien-v0'
+
 
 class RandomActionWrapper(gym.ActionWrapper):
     def __init__(self, env, epsilon=0.1):
@@ -16,7 +18,7 @@ class RandomActionWrapper(gym.ActionWrapper):
 
 
 if __name__ == "__main__":
-    env = RandomActionWrapper(gym.make("CartPole-v0"))
+    env = RandomActionWrapper(gym.make(GAME_NAME))
 
     obs = env.reset()
     total_reward = 0.0

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-from lib import wrappers
-from lib import dqn_model
+from Lab2.deep_q_learning_agent.lib import wrappers, dqn_model
 
 import argparse
 import time
@@ -14,11 +13,11 @@ import torch.optim as optim
 from tensorboardX import SummaryWriter
 
 
-DEFAULT_ENV_NAME = "PongNoFrameskip-v4"
-MEAN_REWARD_BOUND = 19.5
+DEFAULT_ENV_NAME = 'Alien-v0'
+MEAN_REWARD_BOUND = 800
 
 GAMMA = 0.99
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 REPLAY_SIZE = 10000
 LEARNING_RATE = 1e-4
 SYNC_TARGET_FRAMES = 1000
@@ -94,7 +93,10 @@ def calc_loss(batch, net, tgt_net, device="cpu"):
     rewards_v = torch.tensor(rewards).to(device)
     done_mask = torch.ByteTensor(dones).to(device)
 
-    state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
+    try:
+        state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
+    except RuntimeError:
+        pass
     next_state_values = tgt_net(next_states_v).max(1)[0]
     next_state_values[done_mask] = 0.0
     next_state_values = next_state_values.detach()
