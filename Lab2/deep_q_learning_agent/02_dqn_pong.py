@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-from Lab2.deep_q_learning_agent.lib import wrappers, dqn_model
+from Lab2.deep_q_learning_agent.lib import wrappers
+from Lab2.deep_q_learning_agent.lib import dqn_model
 
 import argparse
 import time
@@ -14,18 +15,18 @@ from tensorboardX import SummaryWriter
 
 
 DEFAULT_ENV_NAME = 'Alien-v0'
-MEAN_REWARD_BOUND = 800
+MEAN_REWARD_BOUND = 450
 
 GAMMA = 0.99
-BATCH_SIZE = 64
-REPLAY_SIZE = 10000
+BATCH_SIZE = 128
+REPLAY_SIZE = 10**3
 LEARNING_RATE = 1e-4
-SYNC_TARGET_FRAMES = 1000
-REPLAY_START_SIZE = 10000
+SYNC_TARGET_FRAMES = 10**4
+REPLAY_START_SIZE = 10**4
 
-EPSILON_DECAY_LAST_FRAME = 10**5
-EPSILON_START = 1.0
-EPSILON_FINAL = 0.02
+EPSILON_DECAY_LAST_FRAME = 10**4
+EPSILON_START = 0.9
+EPSILON_FINAL = 0.2
 
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'new_state'])
@@ -96,7 +97,7 @@ def calc_loss(batch, net, tgt_net, device="cpu"):
     try:
         state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
     except RuntimeError:
-        pass
+        raise
     next_state_values = tgt_net(next_states_v).max(1)[0]
     next_state_values[done_mask] = 0.0
     next_state_values = next_state_values.detach()
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if args.cuda else "cpu")
 
     env = wrappers.make_env(args.env)
-
+    print(env.action_space.n)
     net = dqn_model.DQN(env.observation_space.shape, env.action_space.n).to(device)
     tgt_net = dqn_model.DQN(env.observation_space.shape, env.action_space.n).to(device)
     writer = SummaryWriter(comment="-" + args.env)
@@ -169,7 +170,10 @@ if __name__ == "__main__":
 
         optimizer.zero_grad()
         batch = buffer.sample(BATCH_SIZE)
-        loss_t = calc_loss(batch, net, tgt_net, device=device)
-        loss_t.backward()
+        try:
+            loss_t = calc_loss(batch, net, tgt_net, device=device)
+            loss_t.backward()
+        except Exception as e:
+            pass
         optimizer.step()
     writer.close()

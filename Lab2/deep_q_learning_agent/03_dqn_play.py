@@ -11,7 +11,7 @@ from Lab2.deep_q_learning_agent.lib import wrappers, dqn_model
 import collections
 
 DEFAULT_ENV_NAME = 'Alien-v0'
-FPS = 25
+FPS = 10  # 25
 
 
 if __name__ == "__main__":
