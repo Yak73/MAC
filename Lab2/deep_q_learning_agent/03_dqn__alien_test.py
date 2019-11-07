@@ -6,13 +6,12 @@ import numpy as np
 
 import torch
 
-from Lab2.deep_q_learning_agent.lib import wrappers
-from Lab2.deep_q_learning_agent.lib import dqn_model
+from Lab2.deep_q_learning_agent.lib import wrappers, dqn_model
 
 import collections
 
-DEFAULT_ENV_NAME = "PongNoFrameskip-v4"
-FPS = 25
+DEFAULT_ENV_NAME = 'Alien-v0'
+FPS = 15  # 25
 
 
 if __name__ == "__main__":
@@ -27,7 +26,7 @@ if __name__ == "__main__":
 
     env = wrappers.make_env(args.env)
     if args.record:
-        env = gym.wrappers.Monitor(env, args.record)
+        env = gym.wrappers.Monitor(env, args.record, force=True)
     net = dqn_model.DQN(env.observation_space.shape, env.action_space.n)
     net.load_state_dict(torch.load(args.model, map_location=lambda storage, loc: storage))
 

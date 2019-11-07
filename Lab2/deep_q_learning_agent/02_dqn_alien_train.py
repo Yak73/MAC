@@ -14,19 +14,21 @@ import torch.optim as optim
 from tensorboardX import SummaryWriter
 
 
-DEFAULT_ENV_NAME = "PongNoFrameskip-v4"
-MEAN_REWARD_BOUND = 19.5
+DEFAULT_ENV_NAME = 'Alien-v0'
+MEAN_REWARD_BOUND = 850
 
 GAMMA = 0.99
 BATCH_SIZE = 32
-REPLAY_SIZE = 10000
-LEARNING_RATE = 1e-4
-SYNC_TARGET_FRAMES = 1000
-REPLAY_START_SIZE = 10000
+REPLAY_SIZE = 10**3
+LEARNING_RATE = 10**-3
+SYNC_TARGET_FRAMES = 10**4
+REPLAY_START_SIZE = 10**4  # Качество не влияет, но уменьшение числа замедляет
 
 EPSILON_DECAY_LAST_FRAME = 10**5
-EPSILON_START = 1.0
-EPSILON_FINAL = 0.02
+EPSILON_START = 0.9
+EPSILON_FINAL = 0.1
+
+MAX_GAMES = 250
 
 
 Experience = collections.namedtuple('Experience', field_names=['state', 'action', 'reward', 'done', 'new_state'])
@@ -94,7 +96,10 @@ def calc_loss(batch, net, tgt_net, device="cpu"):
     rewards_v = torch.tensor(rewards).to(device)
     done_mask = torch.ByteTensor(dones).to(device)
 
-    state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
+    try:
+        state_action_values = net(states_v).gather(1, actions_v.unsqueeze(-1)).squeeze(-1)
+    except RuntimeError:
+        raise
     next_state_values = tgt_net(next_states_v).max(1)[0]
     next_state_values[done_mask] = 0.0
     next_state_values = next_state_values.detach()
@@ -114,7 +119,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if args.cuda else "cpu")
 
     env = wrappers.make_env(args.env)
-
+    print(env.action_space.n)
     net = dqn_model.DQN(env.observation_space.shape, env.action_space.n).to(device)
     tgt_net = dqn_model.DQN(env.observation_space.shape, env.action_space.n).to(device)
     writer = SummaryWriter(comment="-" + args.env)
@@ -133,6 +138,8 @@ if __name__ == "__main__":
 
     while True:
         frame_idx += 1
+        if len(total_rewards) > MAX_GAMES:
+            break
         epsilon = max(EPSILON_FINAL, EPSILON_START - frame_idx / EPSILON_DECAY_LAST_FRAME)
 
         reward = agent.play_step(net, epsilon, device=device)
@@ -167,7 +174,10 @@ if __name__ == "__main__":
 
         optimizer.zero_grad()
         batch = buffer.sample(BATCH_SIZE)
-        loss_t = calc_loss(batch, net, tgt_net, device=device)
-        loss_t.backward()
+        try:
+            loss_t = calc_loss(batch, net, tgt_net, device=device)
+            loss_t.backward()
+        except Exception as e:
+            pass
         optimizer.step()
     writer.close()
